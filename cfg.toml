@@ -5,4 +5,4 @@ bot_token = "Server"
 bot_owner_id = 12345678
 
 WIFI_SSID = "Iphone"
-WIFI_PASS = "Password"
+WIFI_PASS = "password"
