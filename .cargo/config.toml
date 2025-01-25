@@ -14,5 +14,8 @@ MCU="esp32"
 # Note: this variable is not used by the pio builder (`cargo build --features pio`)
 ESP_IDF_VERSION = "v5.2.2"
 
-# Workaround for https://github.com/esp-rs/esp-idf-template/issues/174 
+# Workaround for https://github.com/esp-rs/esp-idf-template/issues/174
 CRATE_CC_NO_DEFAULTS = "1"
+
+# [target.'cfg(any(target_arch = "riscv32", target_arch = "xtensa"))']
+# runner = "probe-rs run --chip esp32"

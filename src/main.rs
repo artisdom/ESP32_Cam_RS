@@ -64,7 +64,7 @@ struct FormData<'a> {
     birthplace: &'a str,
 }
 
-//Initializing NVS storage 
+//Initializing NVS storage
 fn nvs_init() -> Result<(), EspError> {
     unsafe {
         let mut ret = nvs_flash_init();
@@ -78,18 +78,19 @@ fn nvs_init() -> Result<(), EspError> {
 }
 
 fn main() -> anyhow::Result<()> {
+
     esp_idf_svc::sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
 
     let sys_loop = EspSystemEventLoop::take()?;
     let nvs = EspDefaultNvsPartition::take()?;
-    
+
     let peripherals = Peripherals::take().unwrap();
 
-    
+
     let _init = nvs_init();
 
-    
+
     //Camera Pinout mapping. Use this config for esp32 Cam boards.
     //other boards have different pinouts check docs before running.
     let camera = Camera::new(
@@ -123,40 +124,40 @@ fn main() -> anyhow::Result<()> {
     //Main server function this handler get an image from the camera
     // and posts it to the /video handler below.
     server.fn_handler("/video/camera", Method::Get,move|request| {
-        //Header set to allow for MJPEG streaming 
+        //Header set to allow for MJPEG streaming
         let headers = [
         ("Content-Type", "multipart/x-mixed-replace; boundary=frame"),
         ];
-            
+
         let mut response = request.into_response(200, Some("OK"), &headers).unwrap();
         loop{
             if let Some(framebuffer) = camera.get_framebuffer() {
                 // Create a JPEG image
                 let jpeg_data = framebuffer.data(); // Assuming this returns a JPEG frame
                 let frame_header = format!("--frame\r\nContent-Type: image/jpeg\r\nContent-Length: {}\r\n\r\n", jpeg_data.len());
-    
+
                 // Send the frame header
                 response.write_all(frame_header.as_bytes()).unwrap();
                 // Send the JPEG image
                 response.write_all(&jpeg_data).unwrap();
                 response.write_all(b"\r\n").unwrap(); // End of frame
-                
+
                 info!("Picture Sent!");
                 framebuffer.fb_return();
 
                 /*
                 set to 4 FPS. Higher FPS causes transmission errors.
-                Higher FPS can be acheived either by reducing image 
+                Higher FPS can be acheived either by reducing image
                 resolution (see espcam.rs) or by cooling the esp board.
                  */
-                delay::Ets::delay_ms(250); 
+                delay::Ets::delay_ms(250);
             } else {
                 // If no frame is available, you might want to handle it
                 delay::Ets::delay_ms(100); // Avoid busy waiting
             }
-            
+
         }
-        
+
         Ok::<(), anyhow::Error>(())
     })?;
 
@@ -166,7 +167,7 @@ fn main() -> anyhow::Result<()> {
             .write_all(VIDEO_HTML.as_bytes())
             .map(|_| ())
     })?;
-    
+
     server.fn_handler("/", Method::Get, |req| {
         req.into_ok_response()?
             .write_all(INDEX_HTML.as_bytes())
@@ -216,20 +217,18 @@ Function used to setup and create a wifi server.
 */
 fn create_server(mut wifi: BlockingWifi<EspWifi>) -> anyhow::Result<EspHttpServer<'static>> {
 
-    let wifi_configuration = wifi::Configuration::AccessPoint(AccessPointConfiguration {
+    let wifi_configuration = wifi::Configuration::Client(wifi::ClientConfiguration {
         ssid: SSID.try_into().unwrap(),
-        ssid_hidden: false,
-        auth_method: AuthMethod::WPA2Personal,
         password: PASSWORD.try_into().unwrap(),
-        channel: CHANNEL,
         ..Default::default()
     });
     wifi.set_configuration(&wifi_configuration)?;
     wifi.start()?;
+    wifi.connect()?;
     wifi.wait_netif_up()?;
 
     info!(
-        "Created Wi-Fi with WIFI_SSID `{}` and WIFI_PASS `{}`",
+        "Connected to Wi-Fi with SSID `{}` and PASSWORD `{}`",
         SSID, PASSWORD
     );
 
